@@ -1,7 +1,11 @@
+//rodar "docker start mysql-db" para inicializar nosso container "mysql-db"(nome do container) que é onde se encontra nosso banco (gestao_projetos), ai conseguimos passar dados através do insominia. Para trabalharmos diretamente pelo terminal temos que rodar também "docker exec -it mysql-db mysql -uroot -prootpassword". Lembrando que docker é onde fica nossos containers criados, para ver todos os containers que se encontram nele , rode "docker ps".
+//ver a questão do teste no terminal, pedir os comandos, e se ele trabalha com mais de um termina, que no caso é o  código a frente. /Exemplo de comando CURL: curl -X PUT "http://localhost:3000/tarefa/atualizar" -H "Content-Type: application/jso?id=-1" -d '{"descricao": "Declaracoes", "id_colaborador": 3}'
+//falar para o professor mostrar aquelas operações que ele fez no terminal , referente null e undefined. Pedir para Jadson explicar melhor aquele teste que ele fez , para ver se estava imprimindo o hello word, entre as linhas do codigo
+//a pergunta 3 no final do código  ver com Jadson como da para resolver aquela questão só usando o mysql 
+//ver com jadosn a questão que ele falou de if e else if , noo endpoint cadastrar tarefas
+
 const express = require('express');
 const db = require('./db');
-
-
 
 const app = express();
 
@@ -51,7 +55,7 @@ app.get('/colaborador/consultar', async (req, res) => {
     try {
         const { id } = req.query;
         console.log(id)
-        if (!id) {                                                                                    
+        if (!id) {
             return res.status(400).json("ID do colaborador precisa ser informado.");
         }
         const [row] = await db.query(
@@ -61,6 +65,7 @@ app.get('/colaborador/consultar', async (req, res) => {
         if (row.length < 1) {                                                                                //se row(l 48) for menor que 1 , quer dizer que não recebeu nenhum id (comprimento de array vazio), ai entrara nesse erro
             return res.status(404).json(`Colaborador de id=${id} não encontrado.`);
         }
+
         // Status: OK
         return res.status(200).json(row[0]);                                                                 //usamos isso "row[0]" pois row retorna um objeto dentro de array([{}]), ai para tirar esse objeto de dentro de array fazemos isso "row[0]"
     }
@@ -82,9 +87,9 @@ app.put('/colaborador/atualizar', async (req, res) => {
             return res.status(404).json(`Colaborador de id=${id} não encontrado.`)
         }
         const [result] = await db.query(
-            "UPDATE Colaboradores SET nome = ?, email = ?, departamento = ? WHERE id = ?",                                    
+            "UPDATE Colaboradores SET nome = ?, email = ?, departamento = ? WHERE id = ?",
             [nome ?? row[0]?.nome, email ?? row[0]?.email, departamento ?? row[0]?.departamento, id]          //aqui esta verificando se veiu valor em nome(l 76) se veiu blz ai passara o valor para a atualização, caso não venha ,pegara o valor que ja estava no "row l 77" (row[0]?.nome) . E esse "?" que vem entre row e .nome , é para o caso de "row.nome" estiver sem valor , ai passara para o update o valor de null em vez de undefined , pq se passar undefined ira dar erro 
-        );                                                                                                    
+        );
         // Status: OK
         return res.json(`Colaborador de id=${id} atualizado com sucesso!`);
     }
@@ -294,7 +299,7 @@ app.put('/equipe/atualizar', async (req, res) => {
         const { id } = req.query;
         if (!id) {
             // Status: Bad Request
-            return res.status(400).json("ID do equipe precisa ser informado.");
+            return res.status(400).json("ID da equipe precisa ser informado.");
         }
         const { nome, descricao } = req.body;
         const [row] = await db.query("SELECT * FROM Equipes WHERE id=?", [id]);
@@ -342,7 +347,6 @@ app.delete('/equipe/deletar', async (req, res) => {
 
 
 // CRUD Tarefas
-
 app.post('/tarefa/cadastrar', async (req, res) => {
     try {
         const { id_projeto, id_colaborador, titulo, status, prioridade, data_termino, descricao } = req.body;
@@ -375,6 +379,7 @@ app.post('/tarefa/cadastrar', async (req, res) => {
         }
         // Status: Unprocessable Entity
         if (!id_projeto || !id_colaborador || !titulo || !data_termino || !descricao) return res.status(422).json({ mens: "Obrigatório preencher todos os campos" });
+
     }
     catch (e) {
         // Status: Internal Server Error
@@ -427,15 +432,16 @@ app.put('/tarefa/atualizar', async (req, res) => {
             // Status: Bad Request
             return res.status(400).json("ID do tarefa precisa ser informado.");
         }
-        const { id_colaborador, titulo, status, prioridade, data_termino, descricao } = req.body;
+        const { id_projeto, id_colaborador, titulo, status, prioridade, data_termino, descricao } = req.body;
         const [row] = await db.query("SELECT * FROM Tarefas WHERE id=?", [id]);
         if (row.length < 1) {
             // Status: Not Found
             return res.status(404).json(`Tarefa de id=${id} não encontrada.`);
         }
         const [result] = await db.query(
-            "UPDATE Tarefas SET id_colaborador = ?, titulo = ?, status = ?, prioridade = ?, data_termino = ?, descricao = ? WHERE id = ?",
+            "UPDATE Tarefas SET id_projeto, id_colaborador = ?, titulo = ?, status = ?, prioridade = ?, data_termino = ?, descricao = ? WHERE id = ?",
             [
+                id_projeto ?? row[0]?.id_projeto,
                 id_colaborador ?? row[0]?.id_colaborador,
                 titulo ?? row[0]?.titulo,
                 status ?? row[0]?.status,
@@ -445,6 +451,7 @@ app.put('/tarefa/atualizar', async (req, res) => {
                 id
             ]
         );
+        console.log(result)
         // Status: OK
         return res.status(200).json(`Tarefa de id=${id} atualizada com sucesso!`);
     }
@@ -478,21 +485,21 @@ app.delete('/tarefa/deletar', async (req, res) => {
 app.post('/colaborador/equipe/cadastrar', async (req, res) => {
     try {
         const { id_colaborador, id_equipe, cargo } = req.body;
-        if (id_colaborador && id_equipe && cargo) {                                                                               
+        if (id_colaborador && id_equipe && cargo) {
             const [result] = await db.query(
                 'INSERT INTO Membros (id_colaborador, id_equipe, cargo) VALUES (?, ?, ?)',
                 [id_colaborador, id_equipe, cargo]
             );
             // Status: OK
             return res.status(200).json({
-                message: `Colaborador cadastrado a equipe`,                                                                       
+                message: `Colaborador cadastrado a equipe`,
             });
         }
         // Status: Unprocessable Entity
-        if ( !id_colaborador || !id_equipe || !cargo) return res.status(422).json({ mens: "Obrigatório preencher todos os campos" });
+        if (!id_colaborador || !id_equipe || !cargo) return res.status(422).json({ mens: "Obrigatório preencher todos os campos" });
     }
     catch (e) {
-        if (e.errno == 1062) return res.status(401).json({ mens: "Colaborador já pertence a esta equipe" });
+        if (e.errno == 1062) return res.status(409).json({ mens: "Colaborador já pertence a esta equipe" });
         // Status: Internal Server Error
         return res.status(500).json(e);
     }
@@ -511,24 +518,50 @@ app.get('/colaborador/equipe/listar', async (req, res) => {
         return res.status(500).json(e);
     }
 });
-
-app.get('/colaborador/equipe/consultar', async (req, res) => {
+//o endpoint abaixo ira consultar tanto colaborador vinculado as equipes, quanto equipes e seus colaboradores. Basta passar o id da cosulta desejada
+app.get('/colaborador_equipe/equipe_colaborador/consultar', async (req, res) => {
     try {
-        const { id_colaborador } = req.query;
-        if (!id_colaborador) {
+        const { id_colaborador, id_equipe } = req.query;
+        if (id_colaborador == undefined && id_equipe == undefined) {
             // Status: Bad Request
-            return res.status(400).json("ID de colaborador precisa ser informado.")
+            return res.status(400).json("Precisa informar id colaborador ou id equipe.")
         }
-        const [row] = await db.query(
-            'SELECT id_equipe FROM Membros WHERE id_colaborador = ?',
-            [id_colaborador]
-        );
-        if (row.length < 1) {
-            // Status: Not Found
-            return res.status(404).json(`Colaborador de id=${id_colaborador} não pertence a nenhuma equipe`);
+        else if (id_colaborador != undefined && id_equipe != undefined) {
+            const [row] = await db.query(
+                'SELECT id_equipe, id_colaborador, cargo FROM Membros WHERE id_colaborador = ? and id_equipe= ?',
+                [id_colaborador, id_equipe]
+            );
+            if (row.length < 1) {
+                // Status: Not Found
+                return res.status(404).json(`Colaborador de id= ${id_colaborador} não é membro da equipe de id= ${id_equipe}`);
+            }
+            // Status: OK
+            return res.status(200).json(row);
         }
-        // Status: OK
-        return res.status(200).json(row);
+        else if (id_equipe != undefined) {
+            const [row] = await db.query(
+                'SELECT id_colaborador, cargo FROM Membros WHERE id_equipe= ?',
+                [id_equipe]
+            );
+            if (row.length < 1) {
+                // Status: Not Found
+                return res.status(404).json(`Equipe de id= ${id_equipe} não tem nenhum colaborador`);
+            }
+            // Status: OK
+            return res.status(200).json(row);
+        }
+        else {
+            const [row] = await db.query(
+                'SELECT id_equipe, cargo FROM Membros WHERE id_colaborador = ?',
+                [id_colaborador]
+            );
+            if (row.length < 1) {
+                // Status: Not Found
+                return res.status(404).json(`Colaborador de id= ${id_colaborador} não pertence a nenhuma equipe`);
+            }
+            // Status: OK
+            return res.status(200).json(row);
+        }
     }
     catch (e) {
         // Status: Internal Server Error
@@ -541,7 +574,7 @@ app.delete('/colaborador/equipe/deletar', async (req, res) => {
         const { id_colaborador, id_equipe } = req.query;
         if (!id_colaborador || !id_equipe) {
             // Status: Bad Request
-            return res.status(400).json("Precisam ser informados id_colaborador e id_equipe.")
+            return res.status(400).json("Precisam ser informados id colaborador e id equipe.")
         }
         const [result] = await db.query(
             "DELETE FROM Membros WHERE id_colaborador=? and id_equipe=?", [id_colaborador, id_equipe]);
@@ -561,14 +594,14 @@ app.delete('/colaborador/equipe/deletar', async (req, res) => {
 app.post('/equipe/projeto/cadastrar', async (req, res) => {
     try {
         const { id_equipe, id_projeto } = req.body;
-        if (id_equipe && id_projeto) {                                                                               
+        if (id_equipe && id_projeto) {
             const [result] = await db.query(
                 'INSERT INTO Alocacoes (id_equipe, id_projeto) VALUES (?, ?)',
                 [id_equipe, id_projeto]
             );
             // Status: OK
             return res.status(200).json({
-                message: `Equipe vinculada ao projeto`,                                                                       
+                message: `Equipe vinculada ao projeto`,
             });
         }
         // Status: Unprocessable Entity
@@ -577,7 +610,7 @@ app.post('/equipe/projeto/cadastrar', async (req, res) => {
     }
     catch (e) {
         // Status: Internal Server Error
-        if (e.errno == 1062) return res.status(401).json({ mens: "Equipe já esta vinculada a este projeto" })
+        if (e.errno == 1062) return res.status(409).json({ mens: "Equipe já esta vinculada a este projeto" })
         return res.status(500).json(e);
     }
 });
@@ -595,25 +628,50 @@ app.get('/equipe/projeto/listar', async (req, res) => {
         return res.status(500).json(e);
     }
 });
-
-app.get('/equipe/projeto/consultar', async (req, res) => {
+//o endpoint abaixo ira consultar tanto equipe vinculada as projetos, quanto projeto vinculado a equipes. Basta passar o id da consulta desejada
+app.get('/equipe_projeto/projeto_equipe/consultar', async (req, res) => {
     try {
-        const { id_equipe } = req.query;
-        if (!id_equipe) {
+        const { id_equipe, id_projeto } = req.query;
+        if (id_equipe == undefined && id_projeto == undefined) {
             // Status: Bad Request
-            return res.status(400).json("ID da equipe precisa ser informado.")
+            return res.status(400).json("Precisa ser informado ID de equipe ou ID de projeto.")
         }
-        const [row] = await db.query(
-            'SELECT id_projeto FROM Alocacoes WHERE id_equipe = ?',
-            [id_equipe]
-        );
-        if (row.length < 1) {
-            // Status: Not Found
-            return res.status(404).json(
-                `Equipe de id=${id_equipe} não é vinculada a nenhum projeto.`);
+        else if (id_equipe != undefined && id_projeto != undefined) {
+            const [row] = await db.query(
+                'SELECT id_projeto, id_equipe FROM Alocacoes WHERE id_equipe = ? and id_projeto= ?',
+                [id_equipe, id_projeto]
+            );
+            if (row.length < 1) {
+                // Status: Not Found
+                return res.status(404).json(`Equipe de id= ${id_equipe} não é membro da projeto= ${id_projeto}`);
+            }
+            // Status: OK
+            return res.status(200).json(row);
         }
-        // Status: OK
-        return res.status(200).json(row);
+        else if (id_projeto != undefined) {
+            const [row] = await db.query(
+                'SELECT id_equipe FROM Alocacoes WHERE id_projeto= ?',
+                [id_projeto]
+            );
+            if (row.length < 1) {
+                // Status: Not Found
+                return res.status(404).json(`Projeto de id= ${id_projeto} não tem nenhum equipe`);
+            }
+            // Status: OK
+            return res.status(200).json(row);
+        }
+        else {
+            const [row] = await db.query(
+                'SELECT id_projeto FROM Alocacoes WHERE id_equipe = ?',
+                [id_equipe]
+            );
+            if (row.length < 1) {
+                // Status: Not Found
+                return res.status(404).json(`Equipe de id= ${id_equipe} não pertence a nenhuma projeto`);
+            }
+            // Status: OK
+            return res.status(200).json(row);
+        }
     }
     catch (e) {
         // Status: Internal Server Error
@@ -651,7 +709,7 @@ app.get('/projeto/tarefa/consultar', async (req, res) => {
             return res.status(400).json("ID de projeto precisa ser informado.");
         }
         const [row] = await db.query(
-            'select Projetos.nome as "Projetos", Tarefas.titulo as "Tarefas", Colaboradores.nome as "Colaboradores", Tarefas.status from Projetos inner join Tarefas on Projetos.id = Tarefas.id_projeto inner join Colaboradores on Colaboradores.id = Tarefas.id_colaborador where Projetos.id = ?',
+            'select Tarefas.titulo as "Tarefas", Colaboradores.nome as "Colaboradores", Tarefas.status from Tarefas inner join Colaboradores on Colaboradores.id = Tarefas.id_colaborador where Tarefas.id_projeto = ?',
             [id]
         );
         if (row.length < 1) {
@@ -669,13 +727,13 @@ app.get('/projeto/tarefa/consultar', async (req, res) => {
 
 app.get('/carga/trabalho/colaborador', async (req, res) => {
     try {
-        const { id_colaborador , id_projeto } = req.query;
+        const { id_colaborador, id_projeto } = req.query;
         if (!id_colaborador || !id_projeto) {
             // Status: Bad Request
             return res.status(400).json("ID colaborador e ID projeto precisam ser informados.");
         }
         const [row] = await db.query(
-            'select (24 * (datediff(curdate(), data_inicio ))) as "Carga de Trabalho"  from Tarefas  inner join Projetos on Tarefas.id_projeto = Projetos.id  where id_colaborador = ? and id_projeto= ? ',
+            'select CONCAT(convert(24 * (datediff(Tarefas.data_termino, Projetos.data_inicio )), CHAR), " horas")  as "Carga de Trabalho"  from Tarefas  inner join Projetos on Tarefas.id_projeto = Projetos.id  where id_colaborador = ? and id_projeto= ? ',
             [id_colaborador, id_projeto]
         );
 
@@ -683,9 +741,10 @@ app.get('/carga/trabalho/colaborador', async (req, res) => {
             // Status: Not Found
             return res.status(404).json(`Colaborador não faz parte deste projeto.`);
         }
+
         // Status: OK
         return res.status(200).json(row[0]);
-        
+
     }
     catch (e) {
         // Status: Internal Server Error
