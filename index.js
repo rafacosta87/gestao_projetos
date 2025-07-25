@@ -88,7 +88,7 @@ app.put('/colaborador/atualizar', async (req, res) => {
         }
         const [result] = await db.query(
             "UPDATE Colaboradores SET nome = ?, email = ?, departamento = ? WHERE id = ?",
-            [nome ?? row[0]?.nome, email ?? row[0]?.email, departamento ?? row[0]?.departamento, id]          //aqui esta verificando se veiu valor em nome(l 76) se veiu blz ai passara o valor para a atualização, caso não venha ,pegara o valor que ja estava no "row l 77" (row[0]?.nome) . E esse "?" que vem entre row e .nome , é para o caso de "row.nome" estiver sem valor , ai passara para o update o valor de null em vez de undefined , pq se passar undefined ira dar erro 
+            [nome ?? row[0]?.nome, email ?? row[0]?.email, departamento ?? row[0]?.departamento, id]          //aqui esta verificando se veio valor em nome(l 76), se veio blz ai passara o valor para a atualização, caso não venha ,pegara o valor que ja estava no "row l 77" (row[0]?.nome) . E esse "?" que vem entre row e .nome , é para o caso de "row.nome" estiver sem valor , ai passara para o update o valor de null em vez de undefined , pq se passar undefined ira dar erro 
         );
         // Status: OK
         return res.json(`Colaborador de id=${id} atualizado com sucesso!`);
@@ -508,7 +508,7 @@ app.post('/colaborador/equipe/cadastrar', async (req, res) => {
 app.get('/colaborador/equipe/listar', async (req, res) => {
     try {
         const [rows] = await db.query(
-            'SELECT * FROM Membros'
+            'SELECT Equipes.nome as "equipes", Colaboradores.nome as "colaboradores" , cargo FROM Membros inner join Colaboradores on Colaboradores.id = Membros.id_colaborador inner join Equipes on Equipes.id = Membros.id_equipe  '
         );
         // Status: OK
         return res.status(200).json(rows);
@@ -528,7 +528,7 @@ app.get('/colaborador_equipe/equipe_colaborador/consultar', async (req, res) => 
         }
         else if (id_colaborador != undefined && id_equipe != undefined) {
             const [row] = await db.query(
-                'SELECT id_equipe, id_colaborador, cargo FROM Membros WHERE id_colaborador = ? and id_equipe= ?',
+                'SELECT Equipes.nome as "equipes", Colaboradores.nome as "colaboradores" , cargo FROM Membros inner join Colaboradores on Colaboradores.id = Membros.id_colaborador inner join Equipes on Equipes.id = Membros.id_equipe WHERE id_colaborador = ? and id_equipe= ?',
                 [id_colaborador, id_equipe]
             );
             if (row.length < 1) {
@@ -540,7 +540,7 @@ app.get('/colaborador_equipe/equipe_colaborador/consultar', async (req, res) => 
         }
         else if (id_equipe != undefined) {
             const [row] = await db.query(
-                'SELECT id_colaborador, cargo FROM Membros WHERE id_equipe= ?',
+                'SELECT Equipes.nome as "equipes", Colaboradores.nome as "colaboradores" , cargo FROM Membros inner join Colaboradores on Colaboradores.id = Membros.id_colaborador inner join Equipes on Equipes.id = Membros.id_equipe WHERE id_equipe= ?',
                 [id_equipe]
             );
             if (row.length < 1) {
@@ -552,7 +552,7 @@ app.get('/colaborador_equipe/equipe_colaborador/consultar', async (req, res) => 
         }
         else {
             const [row] = await db.query(
-                'SELECT id_equipe, cargo FROM Membros WHERE id_colaborador = ?',
+                'SELECT Equipes.nome as "equipes", Colaboradores.nome as "colaboradores" , cargo FROM Membros inner join Colaboradores on Colaboradores.id = Membros.id_colaborador inner join Equipes on Equipes.id = Membros.id_equipe WHERE id_colaborador = ?',
                 [id_colaborador]
             );
             if (row.length < 1) {
@@ -568,6 +568,36 @@ app.get('/colaborador_equipe/equipe_colaborador/consultar', async (req, res) => 
         return res.status(500).json(e);
     }
 });
+
+app.put('/colaborador/equipe/atualizar', async (req, res) => {
+    try {
+        const { id_colaborador, id_equipe } = req.query;
+        if (!id_colaborador || !id_equipe) {
+            // Status: Bad Request
+            return res.status(400).json("Precisam ser informados id colaborador e id equipe.")
+        }
+        const { cargo } = req.body;
+        const [row] = await db.query("SELECT * FROM Membros WHERE id_colaborador=? and id_equipe=?", [id_colaborador, id_equipe]);
+        if (row.length < 1) {
+            // Status: Not Found
+            return res.status(404).json(`Colaborador de id=${id_colaborador} não pertence a equipe de id= ${id_equipe}.`);
+        }
+        const [result] = await db.query(
+            "UPDATE Membros SET cargo = ? WHERE id_colaborador=? and id_equipe=? ",
+            [
+                cargo ?? row[0]?.cargo,
+                id_colaborador,
+                id_equipe
+            ]
+        );
+        // Status: OK
+        return res.status(200).json(`Cargo de colaborador de id=${id_colaborador} da equipe de id=${id_equipe} atualizado com sucesso!`);
+    }
+    catch (e) {
+        // Status: Internal Server Error
+        return res.status(500).json(e);
+    }
+})
 
 app.delete('/colaborador/equipe/deletar', async (req, res) => {
     try {
@@ -618,7 +648,7 @@ app.post('/equipe/projeto/cadastrar', async (req, res) => {
 app.get('/equipe/projeto/listar', async (req, res) => {
     try {
         const [rows] = await db.query(
-            'SELECT * FROM Alocacoes'
+            'SELECT Equipes.nome as "equipes", Projetos.nome as "projetos" FROM Alocacoes inner join Projetos on Projetos.id = Alocacoes.id_projeto inner join Equipes on Equipes.id = Alocacoes.id_equipe'
         );
         // Status: OK
         return res.status(200).json(rows);
@@ -638,7 +668,7 @@ app.get('/equipe_projeto/projeto_equipe/consultar', async (req, res) => {
         }
         else if (id_equipe != undefined && id_projeto != undefined) {
             const [row] = await db.query(
-                'SELECT id_projeto, id_equipe FROM Alocacoes WHERE id_equipe = ? and id_projeto= ?',
+                'SELECT Equipes.nome as "equipes", Projetos.nome as "projetos" FROM Alocacoes inner join Projetos on Projetos.id = Alocacoes.id_projeto inner join Equipes on Equipes.id = Alocacoes.id_equipe WHERE id_equipe = ? and id_projeto= ?',
                 [id_equipe, id_projeto]
             );
             if (row.length < 1) {
@@ -650,7 +680,7 @@ app.get('/equipe_projeto/projeto_equipe/consultar', async (req, res) => {
         }
         else if (id_projeto != undefined) {
             const [row] = await db.query(
-                'SELECT id_equipe FROM Alocacoes WHERE id_projeto= ?',
+                'SELECT Equipes.nome as "equipes", Projetos.nome as "projetos" FROM Alocacoes inner join Projetos on Projetos.id = Alocacoes.id_projeto inner join Equipes on Equipes.id = Alocacoes.id_equipe WHERE id_projeto= ?',
                 [id_projeto]
             );
             if (row.length < 1) {
@@ -662,7 +692,7 @@ app.get('/equipe_projeto/projeto_equipe/consultar', async (req, res) => {
         }
         else {
             const [row] = await db.query(
-                'SELECT id_projeto FROM Alocacoes WHERE id_equipe = ?',
+                'SELECT Equipes.nome as "equipes", Projetos.nome as "projetos" FROM Alocacoes inner join Projetos on Projetos.id = Alocacoes.id_projeto inner join Equipes on Equipes.id = Alocacoes.id_equipe WHERE id_equipe = ?',
                 [id_equipe]
             );
             if (row.length < 1) {
